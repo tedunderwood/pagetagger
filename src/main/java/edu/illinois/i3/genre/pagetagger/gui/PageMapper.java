@@ -65,7 +65,7 @@ public class PageMapper extends JFrame {
     private final DefaultTableModel storedModel;
     private final VolumeReader volume;
     private int current;
-    private JComboBox<String> codeBox;
+    private JComboBox codeBox;
     private final TreeMap<Integer,String> codeDictionary;
     private final TreeMap<Integer,Double> capsDictionary;
     private final double threshold = 2.25; // If you want to change stdev threshold...
@@ -150,7 +150,7 @@ public class PageMapper extends JFrame {
         skip.setPreferredSize(buttonSize);
         store = new JButton("Store Code");
         store.setPreferredSize(buttonSize);
-        codeBox = new JComboBox<String>();
+        codeBox = new JComboBox();
         reverse = new JCheckBox("Reverse");
         reverse.setSelected(false);
         reverse.setPreferredSize(textSize);
@@ -223,11 +223,11 @@ public class PageMapper extends JFrame {
          * so that box will always start with the top of the page (otherwise it will auto-
          * scroll to the last line).
          */
-        String pageText = new String();
+        StringBuilder pageText = new StringBuilder();
         for(int i=0;i<lines.length;i++){
-            pageText += lines[i] + "\n";
+            pageText.append(lines[i]).append("\n");
         }
-        pagetextArea.setText(pageText);
+        pagetextArea.setText(pageText.toString());
         pagetextArea.setCaretPosition(0);
         scanNumField.setText("");
         skipNumField.setText("");
@@ -282,7 +282,7 @@ public class PageMapper extends JFrame {
         }
     }
 
-    double getStanDev() {
+    double getStDev() {
         /**
          * Returns the standard deviation of all stored first character capital percentages
          * for stored pages.  Because pages that are too short are assigned -1.0, the total
@@ -448,7 +448,7 @@ public class PageMapper extends JFrame {
                             current = i;
                             displayPage(volume.getPage(current));
                             // If the page has more than 3 lines and exceeds the Standard Deviation threshold, then stop and ask user if they wish to continue fast fowarding.
-                            if(volume.getPage(current).length > 3 && Math.abs(getCapsPercent(volume.getPage(current)) - getMean()) > getStanDev()*threshold) {
+                            if(volume.getPage(current).length > 3 && Math.abs(getCapsPercent(volume.getPage(current)) - getMean()) > getStDev()*threshold) {
                                 setCursorBusy(false);
                                 int choice = JOptionPane.showConfirmDialog(null,"Are you sure you wish to assign " + getCode() + " to page " +Integer.toString(current) +"?","Threshold Reached",JOptionPane.YES_NO_OPTION);
                                 // If user selects "No", then break from fast-forward loop and return to main program
@@ -534,7 +534,7 @@ public class PageMapper extends JFrame {
                  * This button just warns the user that they are about to dismiss the
                  * page map without saving their work
                  */
-                int choice = JOptionPane.showConfirmDialog(null, "Are you sure you want to abandon this page map?","Confirm Cancel",JOptionPane.YES_NO_OPTION);
+                int choice = JOptionPane.showConfirmDialog(PageMapper.this, "Are you sure you want to abandon this page map?","Confirm Cancel",JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
                 if (choice == JOptionPane.YES_OPTION) {
                     dispose();
                 }

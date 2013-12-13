@@ -3,6 +3,8 @@ package edu.illinois.i3.genre.pagetagger.gui;
 import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -152,6 +154,16 @@ public class PredictionManager extends JPanel {
          * be better to define them each separately.  The overall function of each button
          * is described in comments preceding the ActionListener definitions.
          */
+
+        // *****ACTIONS ON THE TABLE*******
+        targetTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                // Double-clicking a row starts the page mapper
+                if (e.getClickCount() == 2)
+                    startMapper.doClick();
+            }
+        });
 
         // *****BUTTONS THAT APPEAR IN THE TOP PANEL*****
         sourceLoad.addActionListener(new ActionListener() {
