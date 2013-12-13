@@ -4,16 +4,21 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.Writer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Properties;
 
 import javax.swing.JOptionPane;
+
+import org.apache.commons.compress.utils.Charsets;
 
 public class Preferences {
     /**
@@ -31,10 +36,10 @@ public class Preferences {
      * the internal default (defined here, NOT IN PAGEMAPPER).
      */
 
+    public final static String DEFAULT_PREF_FILE = "pagetagger.conf";
+
+    private final Properties prefs = new Properties();
     private final File prefsFile;
-    public final static String DEFAULT_PREF_FILE = "genrebrowser.ini";
-    private String genreCodes = null, pageMapDir = "pagemaps/";
-    private String source;
     private String[][] generalCodes, pageCodes;
 
     public Preferences(String filename) {
@@ -44,52 +49,29 @@ public class Preferences {
          * Preferences p = new Preferences(Preferences.DEFAULT_PREF_FILE).
          *
          */
+
         prefsFile = new File(filename);
-        if (prefsFile.exists()) {
-            try {
-                readPrefs();
-            } catch (IOException e) {
-                JOptionPane.showMessageDialog(null, "Problem reading file. Please try again.\nExiting.","Loading Error",JOptionPane.ERROR_MESSAGE);
-            }
+
+        // set some defaults
+        prefs.put("pagemapdir", "pagemaps/");
+
+        Reader reader = null;
+        try {
+            reader = new BufferedReader(new InputStreamReader(new FileInputStream(prefsFile), Charsets.UTF_8));
+            prefs.load(reader);
         }
-    }
-
-    private void readPrefs() throws IOException {
-        /**
-         * Reads the selected preferences file from disk and parses its contents, setting
-         * the internal configuration variables to match the fields it finds.  Line input
-         * is parsed using a simple regex split and a String switch.
-         */
-        ArrayList<String> rawtext = new ArrayList<String>();
-        String line;
-        BufferedReader lines = new BufferedReader(new FileReader(prefsFile));
-        while((line = lines.readLine()) != null){
-            rawtext.add(line.trim());
+        catch (FileNotFoundException e) {
+            // do nothing
         }
-        lines.close();
-        for (int i=0;i<rawtext.size();i++) {
-            if(rawtext.get(i) == "#PREFS") {
-                continue;
-            } else if (rawtext.get(i).length() > 1 && rawtext.get(i).indexOf("=") > 0) {
-                String[] parts = rawtext.get(i).split("=");
-                // Right now there are only four possible fields, but you could add more
-                // by expanding this switch statement.
-                if ("sourcefile".equals(parts[0]))
-                    source = parts[1];
-
-                else
-
-                if ("genrecodes".equals(parts[0]))
-                    genreCodes = parts[1];
-
-                else
-
-                if ("pagemapdir".equals(parts[0]))
-                    pageMapDir = parts[1];
-            }
+        catch (IOException e) {
+            JOptionPane.showConfirmDialog(null, e.getMessage(), "Preferences Loading Error", JOptionPane.OK_OPTION, JOptionPane.ERROR_MESSAGE);
         }
-        System.out.println("Preferences loaded.");
-        if(genreCodes != null) {
+        finally {
+            if (reader != null)
+                try { reader.close(); } catch (Exception e) {}
+        }
+
+        if (hasGenreCodes()) {
             // If users selected a genre codes file during a past session, retrieve it!
             System.out.println("Trying to load genre codes file.");
             readCodes();
@@ -102,22 +84,18 @@ public class Preferences {
          * read from initially, or in the case of a first-run to the filename passed into
          * the constructor at creation.
          */
+        Writer writer = null;
         try {
-            BufferedWriter output = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(prefsFile.getAbsolutePath()),"UTF-8"));
-            output.write("#PREFS\n");
-            output.write("sourcefile=" + source + "\n");
-            // If the pagemapdir was overrided by the current configuration file, remember it.
-            if (!pageMapDir.equals("pagemaps/")) {
-                output.write("pagemapdir=" + pageMapDir + "\n");
-            }
-            // If users selected a genre codes file, remember it.
-            if (genreCodes != null) {
-                output.write("genrecodes=" + genreCodes + "\n");
-            }
-            output.close();
+            writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(prefsFile), "UTF-8"));
+            prefs.store(writer, "PageTagger Preferences");
             System.out.println("Preferences written to disk.");
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             JOptionPane.showMessageDialog(null, "Problem writing file. Please ensure you have the necessary privledges.","Write Error",JOptionPane.ERROR_MESSAGE);
+        }
+        finally {
+            if (writer != null)
+                try { writer.close(); } catch (Exception e) {}
         }
     }
 
@@ -126,7 +104,7 @@ public class Preferences {
     // This is standard OOP practice.
 
     public String getSource() {
-        return source;
+        return prefs.getProperty("sourcefile");
     }
 
     public String[][] getGeneralCodes() {
@@ -138,7 +116,7 @@ public class Preferences {
     }
 
     public String getMapDir() {
-        return pageMapDir;
+        return prefs.getProperty("pagemapdir");
     }
 
     public void setGenreCodes(String filename) {
@@ -146,7 +124,7 @@ public class Preferences {
          * Public interface method for genre code files.  The code reader is private and
          * internal.  This sets the internal filename and then loads the internal code reader.
          */
-        genreCodes = filename;
+        prefs.put("genrecodes", filename);
         readCodes();
     }
 
@@ -164,6 +142,7 @@ public class Preferences {
         all = new ArrayList<String[]>();
         page = new ArrayList<String[]>();
         boolean both = true;
+        String genreCodes = prefs.getProperty("genrecodes");
         try {
             InputStream codesIn = new FileInputStream(new File(genreCodes));
             BufferedReader inLines = new BufferedReader(new InputStreamReader(codesIn,Charset.forName("UTF-8")));
@@ -185,9 +164,10 @@ public class Preferences {
             inLines.close();
             generalCodes = all.toArray(new String[all.size()][2]);
             pageCodes = page.toArray(new String[page.size()][2]);
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             JOptionPane.showMessageDialog(null, "Could not load Genre Codes from " + genreCodes + ".\nPlease ensure file exists.","Load Error.",JOptionPane.ERROR_MESSAGE);
-            genreCodes = null;
+            prefs.remove("genrecodes");
         }
     }
 
@@ -197,11 +177,7 @@ public class Preferences {
          * from the configuration file or during run-time by the user when starting the
          * PageMapper).
          */
-        if (genreCodes == null) {
-            return false;
-        } else {
-            return true;
-        }
+        return prefs.containsKey("genrecodes");
     }
 
 }

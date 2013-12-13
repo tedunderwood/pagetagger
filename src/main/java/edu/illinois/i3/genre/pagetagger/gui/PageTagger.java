@@ -147,9 +147,14 @@ public class PageTagger extends JFrame {
         JMenu fileMenu = new JMenu("File");
         JMenuBar mainMenuBar = new JMenuBar();
         mainMenuBar.add(fileMenu = new JMenu("File"));
-        //fileMenu.add(openMI = new JMenuItem("Open..."));
-        //openMI.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, MENU_MASK));
-        //openMI.addActionListener(this);
+        fileMenu.add(openMI = new JMenuItem("Open..."));
+        openMI.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, MENU_MASK));
+        openMI.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent arg0) {
+                predict.loadArff();
+            }
+        });
 
         // Quit/prefs menu items are provided on Mac OS X; only add your own on other platforms
         if (!MAC_OS_X) {

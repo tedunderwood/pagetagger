@@ -28,7 +28,9 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableModel;
 
 import edu.illinois.i3.genre.pagetagger.backend.Preferences;
@@ -55,11 +57,13 @@ public class PageMapper extends JFrame {
      */
 
     private JPanel pagePanel,actionsPanel,movePanel,centerPanel,savePanel,storedPanel;
-    private JLabel position,storedCount;
+    private JPanel generalCodesPanel, pageCodesPanel;
+    private JLabel position,storedCount,currentPageTag;
     private JTable storedTable;
     private JTextArea pagetextArea;
     private JTextField scanNumField,skipNumField;
     private JButton store,scan,save,load,cancel,skip;
+    private JButton navFirst,navPrev,navNext,navLast;
     private JScrollPane pageScroll,storedScroll;
     private JCheckBox reverse;
     private final DefaultTableModel storedModel;
@@ -115,7 +119,7 @@ public class PageMapper extends JFrame {
         buttonProperties.gridx = 1;
 
         // Initializes all panels, layout managers, spacing
-        setSize(600,700);
+        setMinimumSize(new Dimension(750,750));
         setLayout(new BorderLayout());
         pagePanel = new JPanel();
         pagePanel.setLayout(new BorderLayout());
@@ -137,6 +141,13 @@ public class PageMapper extends JFrame {
 
         // Intializes all of the graphics objects, passes in variables defined above
         position = new JLabel();
+        position.setHorizontalAlignment(SwingConstants.LEFT);
+        position.setHorizontalTextPosition(SwingConstants.LEFT);
+        position.setPreferredSize(new Dimension(100, 20));
+        currentPageTag = new JLabel();
+        currentPageTag.setHorizontalAlignment(SwingConstants.RIGHT);
+        currentPageTag.setHorizontalTextPosition(SwingConstants.RIGHT);
+        currentPageTag.setPreferredSize(new Dimension(100,20));
         pagetextArea = new JTextArea();
         pagetextArea.setEditable(false);
         pageScroll = new JScrollPane(pagetextArea);
@@ -189,8 +200,29 @@ public class PageMapper extends JFrame {
         savePanel.add(cancel);
         savePanel.add(Box.createHorizontalGlue());
 
+        // Define page navigation buttons
+        navFirst = new JButton("|<");
+        navPrev = new JButton("<");
+        navNext = new JButton(">");
+        navLast = new JButton(">|");
+
+        JPanel navPanel = new JPanel();
+        //navPanel.setHorizontalAlignment(SwingConstants.CENTER);
+        //navPanel.setLayout(new BoxLayout(navPanel, BoxLayout.X_AXIS));
+        //navPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 10));
+        navPanel.add(navFirst);
+        navPanel.add(navPrev);
+        navPanel.add(navNext);
+        navPanel.add(navLast);
+
+        JPanel topPanel = new JPanel();
+        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.X_AXIS));
+        topPanel.add(position);
+        topPanel.add(navPanel);
+        topPanel.add(currentPageTag);
+
         // Layout sequence for page display
-        pagePanel.add(position,BorderLayout.NORTH);
+        pagePanel.add(topPanel,BorderLayout.NORTH);
         pagePanel.add(pageScroll,BorderLayout.CENTER);
 
         // Layout sequence for the stored counter and table display
@@ -209,9 +241,23 @@ public class PageMapper extends JFrame {
         actionsPanel.add(centerPanel,BorderLayout.CENTER);
         actionsPanel.add(savePanel,BorderLayout.SOUTH);
 
+        generalCodesPanel = new JPanel();
+        generalCodesPanel.setBorder(new TitledBorder("General"));
+        generalCodesPanel.setLayout(new BoxLayout(generalCodesPanel, BoxLayout.Y_AXIS));
+
+        pageCodesPanel = new JPanel();
+        pageCodesPanel.setBorder(new TitledBorder("Page"));
+        pageCodesPanel.setLayout(new BoxLayout(pageCodesPanel, BoxLayout.Y_AXIS));
+
+        JPanel labelsPanel = new JPanel();
+        //labelsPanel.setLayout(new BoxLayout(labelsPanel,BoxLayout.X_AXIS));
+        labelsPanel.add(pageCodesPanel);
+        labelsPanel.add(generalCodesPanel);
+
         // Layout sequence for the entire JFrame, contains page display and interactive objects
         add(pagePanel,BorderLayout.CENTER);
         add(actionsPanel,BorderLayout.SOUTH);
+        add(labelsPanel, BorderLayout.EAST);
     }
 
     private void displayPage(String[] lines) {
@@ -231,7 +277,9 @@ public class PageMapper extends JFrame {
         pagetextArea.setCaretPosition(0);
         scanNumField.setText("");
         skipNumField.setText("");
-        position.setText("Page " + Integer.toString(current) + " / " + Integer.toString(volume.getLength()-1));
+        position.setText("Page " + (current+1) + " / " + volume.getLength());
+        String tag = codeDictionary.containsKey(current) ? codeDictionary.get(current) : "N/A";
+        currentPageTag.setText(String.format("Label: %s", tag));
     }
 
     private double getCapsPercent(String[] lines) {
@@ -309,14 +357,14 @@ public class PageMapper extends JFrame {
         }
     }
 
-    private void storePageData() {
+    private void storePageData(String code) {
         /**
          * When a page is stored, it's caps% and code need to be stored.  They are handled
          * by different functions because sometimes its necessary to store percent without
          * storing codes (i.e., mean/standev calculations).
          */
         storePagePercent();
-        storePageCode();
+        storePageCode(code);
     }
 
     private void storePagePercent() {
@@ -333,13 +381,13 @@ public class PageMapper extends JFrame {
         }
     }
 
-    private void storePageCode() {
+    private void storePageCode(String code) {
         /**
          * Updates the codeDictionary (a Map) by setting the value according to page number
          * keys. It also tells the counter and storedModel to update their displays with
          * the currently stored codes.
          */
-        codeDictionary.put(current,getCode());
+        codeDictionary.put(current,code);
         updateCodeDisplay();
         storedCount.setText("Stored: " + codeDictionary.size() + "/" + volume.getLength());
     }
@@ -353,7 +401,7 @@ public class PageMapper extends JFrame {
         String[] columns = {"Page","Code"};
         Integer[] keys = getIterableKeys(codeDictionary.keySet());
         for(int i=0;i<keys.length;i++) {
-            codes[i][0] = keys[i].toString();
+            codes[i][0] = Integer.toString(keys[i]+1);
             codes[i][1] = codeDictionary.get(keys[i]);
         }
         storedModel.setDataVector(codes,columns);
@@ -377,22 +425,8 @@ public class PageMapper extends JFrame {
                  * instead of advancing.
                  */
                 if(isValidCode()) {
-                    storePageData();
-                    if (!reverse.isSelected()) {
-                        if (current < volume.getLength()-1) {
-                            current++;
-                            displayPage(volume.getPage(current));
-                        } else {
-                            JOptionPane.showMessageDialog(null,"End of volume reached. Cannot advance further in current direction.","Traversal Error",JOptionPane.WARNING_MESSAGE);
-                        }
-                    } else {
-                        if (current > 0) {
-                            current--;
-                            displayPage(volume.getPage(current));
-                        } else {
-                            JOptionPane.showMessageDialog(null,"Start of volume reached. Cannot advance further in current direction.","Traversal Error",JOptionPane.WARNING_MESSAGE);
-                        }
-                    }
+                    storePageData(getCode());
+                    advance();
                 } else {
                     JOptionPane.showMessageDialog(null,"Invalid selection. Please choose a genre code.","Invalid Selection",JOptionPane.WARNING_MESSAGE);
                 }
@@ -457,7 +491,7 @@ public class PageMapper extends JFrame {
                                 }
                             }
                             // If page is less than 3 lines, does not exceed threshold, or user selected "Yes" then assign code to page and continue to fast-forward.
-                            storePageData();
+                            storePageData(getCode());
                         }
                         if (current != 0 && current != volume.getLength()-1) {
                             // If the end of the volume has not been reached, then show user the next page so they can decide on a code.
@@ -486,7 +520,7 @@ public class PageMapper extends JFrame {
                  * within the volume.
                  */
                 try {
-                    int toPage = Integer.parseInt(skipNumField.getText());
+                    int toPage = Integer.parseInt(skipNumField.getText())-1;
                     if (toPage < 0 || toPage >= volume.getLength()) {
                         JOptionPane.showMessageDialog(null, "Specified page is not within range.","Invalid Selection",JOptionPane.ERROR_MESSAGE);
                     } else {
@@ -496,6 +530,46 @@ public class PageMapper extends JFrame {
                 } catch (NumberFormatException badnum) {
                     JOptionPane.showMessageDialog(null,"Enter a valid page number.","Invalid Selection",JOptionPane.ERROR_MESSAGE);
                     return;
+                }
+            }
+        });
+
+        navFirst.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent arg0) {
+                if (current > 0) {
+                    current = 0;
+                    displayPage(volume.getPage(current));
+                }
+            }
+        });
+
+        navPrev.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (current > 0) {
+                    current--;
+                    displayPage(volume.getPage(current));
+                }
+            }
+        });
+
+        navNext.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (current < volume.getLength()-1) {
+                    current++;
+                    displayPage(volume.getPage(current));
+                }
+            }
+        });
+
+        navLast.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (current < volume.getLength()-1) {
+                    current = volume.getLength()-1;
+                    displayPage(volume.getPage(current));
                 }
             }
         });
@@ -607,14 +681,38 @@ public class PageMapper extends JFrame {
          * A simple function to concatenate the two String matrices of codes into a single
          * array for display in a combobox (codeBox).
          */
+
+        ActionListener setPageLabelListener = new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                CodeButton codeBtn = (CodeButton)e.getSource();
+                storePageData(codeBtn.getCode());
+                advance();
+            }
+        };
+
         codeBox.addItem("GENERAL CODES");
         for (int i=0;i<generalCodes.length;i++) {
-            codeBox.addItem(generalCodes[i][0] + " - " + generalCodes[i][1]);
+            String genCode = generalCodes[i][0];
+            String genCodeDescription = generalCodes[i][1];
+            codeBox.addItem(genCode + " - " + genCodeDescription);
+
+            JButton genCodeBtn = new CodeButton(genCode, genCodeDescription);
+            genCodeBtn.addActionListener(setPageLabelListener);
+            generalCodesPanel.add(genCodeBtn);
         }
+
         codeBox.addItem(" ");
+
         codeBox.addItem("PAGE ONLY CODES");
         for (int i=0;i<pageCodes.length;i++) {
-            codeBox.addItem(pageCodes[i][0] + " - " + pageCodes[i][1]);
+            String pageCode = pageCodes[i][0];
+            String pageCodeDescription = pageCodes[i][1];
+            codeBox.addItem(pageCode + " - " + pageCodeDescription);
+
+            JButton pageCodeBtn = new CodeButton(pageCode, pageCodeDescription);
+            pageCodeBtn.addActionListener(setPageLabelListener);
+            pageCodesPanel.add(pageCodeBtn);
         }
     }
 
@@ -644,5 +742,44 @@ public class PageMapper extends JFrame {
             JOptionPane.showMessageDialog(null, "Page Map could not be saved in " + pageMapDir + ". Check directory priviledges and try again.","Save Error",JOptionPane.ERROR_MESSAGE);
         }
 
+    }
+
+    private void advance() {
+        if (!reverse.isSelected()) {
+            if (current < volume.getLength()-1) {
+                current++;
+                displayPage(volume.getPage(current));
+            } else {
+                JOptionPane.showMessageDialog(null,"End of volume reached. Cannot advance further in current direction.","Traversal Error",JOptionPane.WARNING_MESSAGE);
+            }
+        } else {
+            if (current > 0) {
+                current--;
+                displayPage(volume.getPage(current));
+            } else {
+                JOptionPane.showMessageDialog(null,"Start of volume reached. Cannot advance further in current direction.","Traversal Error",JOptionPane.WARNING_MESSAGE);
+            }
+        }
+    }
+
+    private final class CodeButton extends JButton {
+        private final String code;
+        private final String codeDescription;
+
+        public CodeButton(String code, String codeDescription) {
+            super(code);
+            setToolTipText(codeDescription);
+
+            this.code = code;
+            this.codeDescription = codeDescription;
+        }
+
+        public String getCode() {
+            return code;
+        }
+
+        public String getCodeDescription() {
+            return codeDescription;
+        }
     }
 }

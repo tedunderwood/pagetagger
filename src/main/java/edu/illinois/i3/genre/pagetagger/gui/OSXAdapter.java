@@ -121,7 +121,7 @@ public class OSXAdapter implements InvocationHandler {
             // Override OSXAdapter.callTarget to send information on the
             // file to be opened
             @Override
-			public boolean callTarget(Object appleEvent) {
+            public boolean callTarget(Object appleEvent) {
                 if (appleEvent != null) {
                     try {
                         Method getFilenameMethod = appleEvent.getClass().getDeclaredMethod("getFilename", (Class[])null);
@@ -137,6 +137,7 @@ public class OSXAdapter implements InvocationHandler {
     }
 
     // setHandler creates a Proxy object from the passed OSXAdapter and adds it as an ApplicationListener
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     public static void setHandler(OSXAdapter adapter) {
         try {
             Class applicationClass = Class.forName("com.apple.eawt.Application");
@@ -178,7 +179,7 @@ public class OSXAdapter implements InvocationHandler {
     // InvocationHandler implementation
     // This is the entry point for our proxy object; it is called every time an ApplicationListener method is invoked
     @Override
-	public Object invoke (Object proxy, Method method, Object[] args) throws Throwable {
+    public Object invoke (Object proxy, Method method, Object[] args) throws Throwable {
         if (isCorrectMethod(method, args)) {
             boolean handled = callTarget(args[0]);
             setApplicationEventHandled(args[0], handled);

@@ -1,8 +1,6 @@
 package edu.illinois.i3.genre.pagetagger.gui;
 
 import java.awt.BorderLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.BufferedReader;
@@ -14,7 +12,6 @@ import java.util.ArrayList;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -50,11 +47,10 @@ public class PredictionManager extends JPanel {
 
     PredictionTableModel targetModel;
     private ARFF source;
-    private JPanel filesPanel, buttonsPanel;
+    private JPanel filesPanel;
     private JScrollPane targetScroll;
     private JTable targetTable;
     private JTextField sourceName;
-    private JButton sourceLoad,startMapper,clear,loadFromSource;
     private JLabel sourceLabel;
     private Boolean modified,loaded;
     private FileNameExtensionFilter arffOnly;
@@ -68,7 +64,6 @@ public class PredictionManager extends JPanel {
         targetModel = new PredictionTableModel();
         drawGUI();
         defineListeners();
-        setButtonStates(false);
         modified = false;
         volumeDataDir = null;
         loaded = false;
@@ -108,12 +103,7 @@ public class PredictionManager extends JPanel {
         targetScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
 
         // Initialize and configure the remaining interactive objects
-        sourceLoad = new JButton("Load");
-        startMapper = new JButton("Page Mapper");
-        clear = new JButton("Clear Records");
-        loadFromSource = new JButton("Load Source Records");
         filesPanel = new JPanel();
-        buttonsPanel = new JPanel();
         sourceLabel = new JLabel("Source:");
         sourceName = new JTextField("",20);
         sourceName.setEditable(false);
@@ -122,29 +112,12 @@ public class PredictionManager extends JPanel {
         setBorder(new EmptyBorder(10, 5, 5, 10));
         setLayout(new BorderLayout());
         filesPanel.setLayout(new BoxLayout(filesPanel,BoxLayout.X_AXIS));
-        buttonsPanel.setLayout(new BoxLayout(buttonsPanel,BoxLayout.X_AXIS));
         filesPanel.add(Box.createHorizontalGlue());
         filesPanel.add(sourceLabel);
         filesPanel.add(sourceName);
-        filesPanel.add(sourceLoad);
         filesPanel.add(Box.createHorizontalGlue());
-        filesPanel.add(startMapper);
-        buttonsPanel.add(Box.createHorizontalGlue());
-        buttonsPanel.add(clear);
-        buttonsPanel.add(loadFromSource);
-        buttonsPanel.add(Box.createHorizontalGlue());
         add(filesPanel,BorderLayout.NORTH);
         add(targetScroll,BorderLayout.CENTER);
-        add(buttonsPanel,BorderLayout.SOUTH);
-    }
-
-    private void setButtonStates(boolean state) {
-        /**
-         * A quick way to enable/disable all prediction manipulation buttons.
-         */
-        clear.setEnabled(state);
-        loadFromSource.setEnabled(state);
-        startMapper.setEnabled(state);
     }
 
     private void defineListeners() {
@@ -161,131 +134,7 @@ public class PredictionManager extends JPanel {
             public void mouseClicked(MouseEvent e) {
                 // Double-clicking a row starts the page mapper
                 if (e.getClickCount() == 2)
-                    startMapper.doClick();
-            }
-        });
-
-        // *****BUTTONS THAT APPEAR IN THE TOP PANEL*****
-        sourceLoad.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                /**
-                 * When a user tries to load a source prediction, this method first checks
-                 * to see if a source prediction has already been successfully loaded.  If so,
-                 * the user is asked if they want to drop the subtables created by the prior
-                 * load sequence.  If not, this load sequence is abandoned.  If so, the tables
-                 * are dropped, the ARFF file is read from disk (stored in an ARFF object), and
-                 * a subtable of those records is created within Derby.
-                 */
-                if(loaded) {
-                    int response = JOptionPane.showConfirmDialog(null,"A source prediction has already been loaded.  Do you want to\nclear it from memory and load a different one?","Source Already Loaded",JOptionPane.YES_NO_OPTION);
-                    if(response == JOptionPane.YES_OPTION) {
-                        sourceName.setText(null);
-                        loaded = false;
-                    } else {
-                        return;
-                    }
-                }
-
-                // If the user does not select a file, then abandon load sequence
-                String input[] = loadfile();
-                if (input == null) {
-                    return;
-                }
-                source = new ARFF(input);
-                // TODO: Some sort of check to make sure the ARFF processed correctly?
-
-                // Normal load sequence: produce subtable using the prediction's records, enable only those buttons pertaining to loading.
-                clear.setEnabled(true);
-                loadFromSource.setEnabled(true);
-                loadFromSource.doClick();
-                loaded = true;
-            }
-        });
-
-        startMapper.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                /**
-                 * This button loads the PageMapper module. When first clicked during a session,
-                 * it will prompt user for the location of the directory containing the volumes
-                 * to be mapped.  It is assumed that this may change with each session.  If
-                 * users are running the PageMapper for the first time in an install of the browser,
-                 * then they will be prompted for a list of genre codes.  It is assumed that this
-                 * list will not change frequently (and can be manually updated by editting or
-                 * replacing the file).
-                 */
-                int selected[] = targetTable.getSelectedRows();
-                if (selected.length != 1)
-                    return;
-                else if(!targetModel.isMapping()) {
-                    JOptionPane.showMessageDialog(null, "Please identify where volume data is stored.  Your choice will be saved for this session only.","Session Initalization",JOptionPane.OK_OPTION);
-                    JFileChooser vdchoose = new JFileChooser(System.getProperty("user.dir"));
-                    vdchoose.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-                    vdchoose.showOpenDialog(null);
-                    volumeDataDir = vdchoose.getSelectedFile().getAbsolutePath() + "/";
-                    vdchoose = null;
-                    if(!prefs.hasGenreCodes()) {
-                        // After users select a genre codes file, the file must be loaded into memory
-                        // so that the pagemapper can parse them.
-                        JOptionPane.showMessageDialog(null, "No genre codes table selected.  Please locate the file containing your genre codes.\nYour choice will be stored for future sessions.","Session Initalization",JOptionPane.OK_OPTION);
-                        JFileChooser codechoose = new JFileChooser(System.getProperty("user.dir"));
-                        codechoose.setFileFilter(new FileNameExtensionFilter("Configuration files","ini"));
-                        codechoose.showOpenDialog(null);
-                        prefs.setGenreCodes(codechoose.getSelectedFile().getAbsolutePath());
-                    }
-                }
-                try {
-                    // After the codes and data directory are set, pass the volume selected in the
-                    // target prediction table into the Volume Reader.  Then pass the Volume Reader
-                    // into the Page Mapper.  If users save their map, mark the listing as mapped
-                    // in the target prediction table.
-                    VolumeReader volume = new VolumeReader(targetModel.getValueAt(selected[0],PredictionTableModel.HTID_COL).toString(),volumeDataDir,false);
-                    PageMapper pagemap = new PageMapper(volume,prefs);
-                    pagemap.setVisible(true);
-                    if(pagemap.complete) {
-                        targetModel.volumeMapped(selected[0]);
-                    }
-                } catch (FileNotFoundException e1) {
-                    int choice = JOptionPane.showConfirmDialog(null, "Selected Volume does not exist in data directory. Reset data directory?","Volume Not Found",JOptionPane.YES_NO_OPTION);
-                    if (choice == JOptionPane.YES_OPTION) {
-                        targetModel.setMapping(false);
-                    }
-                    return;
-                }
-
-            }
-        });
-
-        // *****BUTTONS THAT APPEAR IN THE BOTTOM PANEL*****
-
-        clear.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                /**
-                 * Clear the prediction manager by removing both source and target from
-                 * memory.
-                 */
-                if (sourceName.getText().length() > 0) {
-                    sourceName.setText(null);
-                }
-                targetModel.setRowCount(0);
-                setButtonStates(false);
-                modified = false;
-                loaded = false;
-            }
-        });
-
-        loadFromSource.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                /**
-                 * Transfer records from source prediction to target prediction.  I wrote this
-                 * as a separate function because I originally intended to have the browser
-                 * ask users if they wanted to transfer source to target whenever a source was
-                 * loaded but later decided not to.  See the full method below...
-                 */
-                loadSourceRecords();
+                    startMapper();
             }
         });
 
@@ -303,10 +152,6 @@ public class PredictionManager extends JPanel {
                  */
                 if (targetModel.getRowCount() != 0 && !modified) {
                     modified = true;
-                    setButtonStates(true);
-                    if (!loaded) {
-                        loadFromSource.setEnabled(false);
-                    }
                     // Check to see if the last row has a pagemap (so new additions will get marked).
                     String latestHTid = targetModel.getValueAt(targetModel.getRowCount()-1,PredictionTableModel.HTID_COL).toString();
                     if(checkForMap(latestHTid)) {
@@ -314,11 +159,6 @@ public class PredictionManager extends JPanel {
                     }
                 } else if (targetModel.getRowCount() == 0) {
                     modified = false;
-                    setButtonStates(false);
-                    if (loaded) {
-                        loadFromSource.setEnabled(true);
-                        clear.setEnabled(true);
-                    }
                 }
             }
         });
@@ -344,7 +184,7 @@ public class PredictionManager extends JPanel {
             return null;
         }
         File arffin = fdialog.getSelectedFile();
-        sourceName.setText(arffin.getName());
+        sourceName.setText(arffin.getAbsolutePath());
         try {
             BufferedReader lines = new BufferedReader(new FileReader(arffin));
             while((line = lines.readLine()) != null){
@@ -396,6 +236,88 @@ public class PredictionManager extends JPanel {
             return true;
         } else {
             return false;
+        }
+    }
+
+    public void loadArff() {
+        /**
+         * When a user tries to load a source prediction, this method first checks
+         * to see if a source prediction has already been successfully loaded.  If so,
+         * the user is asked if they want to drop the subtables created by the prior
+         * load sequence.  If not, this load sequence is abandoned.  If so, the tables
+         * are dropped, the ARFF file is read from disk (stored in an ARFF object), and
+         * a subtable of those records is created within Derby.
+         */
+        if(loaded) {
+            int response = JOptionPane.showConfirmDialog(null,"A source prediction has already been loaded.  Do you want to\nclear it from memory and load a different one?","Source Already Loaded",JOptionPane.YES_NO_OPTION);
+            if(response == JOptionPane.YES_OPTION) {
+                sourceName.setText(null);
+                loaded = false;
+            } else {
+                return;
+            }
+        }
+
+        // If the user does not select a file, then abandon load sequence
+        String input[] = loadfile();
+        if (input == null) {
+            return;
+        }
+        source = new ARFF(input);
+        // TODO: Some sort of check to make sure the ARFF processed correctly?
+
+        // Normal load sequence: produce subtable using the prediction's records, enable only those buttons pertaining to loading.
+        loadSourceRecords();
+        loaded = true;
+    }
+
+    private void startMapper() {
+        /**
+         * This button loads the PageMapper module. When first clicked during a session,
+         * it will prompt user for the location of the directory containing the volumes
+         * to be mapped.  It is assumed that this may change with each session.  If
+         * users are running the PageMapper for the first time in an install of the browser,
+         * then they will be prompted for a list of genre codes.  It is assumed that this
+         * list will not change frequently (and can be manually updated by editting or
+         * replacing the file).
+         */
+        int selected[] = targetTable.getSelectedRows();
+        if (selected.length != 1)
+            return;
+        else if(!targetModel.isMapping()) {
+            JOptionPane.showMessageDialog(null, "Please identify where volume data is stored.  Your choice will be saved for this session only.","Session Initalization",JOptionPane.OK_OPTION);
+            JFileChooser vdchoose = new JFileChooser(System.getProperty("user.dir"));
+            vdchoose.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            vdchoose.showOpenDialog(null);
+            volumeDataDir = vdchoose.getSelectedFile().getAbsolutePath() + "/";
+            vdchoose = null;
+            if(!prefs.hasGenreCodes()) {
+                // After users select a genre codes file, the file must be loaded into memory
+                // so that the pagemapper can parse them.
+                JOptionPane.showMessageDialog(null, "No genre codes table selected.  Please locate the file containing your genre codes.\nYour choice will be stored for future sessions.","Session Initalization",JOptionPane.OK_OPTION);
+                JFileChooser codechoose = new JFileChooser(System.getProperty("user.dir"));
+                codechoose.setFileFilter(new FileNameExtensionFilter("Configuration files","ini"));
+                codechoose.showOpenDialog(null);
+                prefs.setGenreCodes(codechoose.getSelectedFile().getAbsolutePath());
+            }
+        }
+        try {
+            // After the codes and data directory are set, pass the volume selected in the
+            // target prediction table into the Volume Reader.  Then pass the Volume Reader
+            // into the Page Mapper.  If users save their map, mark the listing as mapped
+            // in the target prediction table.
+            VolumeReader volume = new VolumeReader(targetModel.getValueAt(selected[0],PredictionTableModel.HTID_COL).toString(),volumeDataDir,false);
+            PageMapper pagemap = new PageMapper(volume,prefs);
+            pagemap.setVisible(true);
+            if(pagemap.complete) {
+                targetModel.volumeMapped(selected[0]);
+            }
+        } catch (FileNotFoundException e1) {
+            int choice = JOptionPane.showConfirmDialog(null, "Selected Volume does not exist in data directory. Reset data directory?","Volume Not Found",JOptionPane.YES_NO_OPTION);
+            if (choice == JOptionPane.YES_OPTION) {
+                targetModel.setMapping(false);
+            }
+            return;
         }
     }
 }
