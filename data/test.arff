@@ -1,0 +1,16 @@
+% 1. This is a test prediction!
+% It doesn't reflect real data.  Just used i/o testing
+%
+% 2. Sources:
+% Completely made up!
+
+@RELATION dummy@ATTRIBUTE htid string
+@ATTRIBUTE startpg numeric
+@ATTRIBUTE endpg numeric
+@ATTRIBUTE startpgpart numeric
+@ATTRIBUTE endpgpart numeric
+@ATTRIBUTE probability numeric
+
+pst.000057440002,4,330,0,0,0.7
+pst.000000059596,4,330,0,0,0.7
+pst.000000022170,4,330,0,0,0.7
